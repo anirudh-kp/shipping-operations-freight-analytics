@@ -1,0 +1,327 @@
+USE shipping_analytics;
+CREATE TABLE Customers (
+    CustomerID VARCHAR(10) PRIMARY KEY,
+    CustomerName VARCHAR(100) NOT NULL
+);
+CREATE TABLE Routes (
+    RouteID VARCHAR(10) PRIMARY KEY,
+    Origin VARCHAR(100) NOT NULL,
+    Destination VARCHAR(100) NOT NULL,
+    ShippingMode VARCHAR(20) NOT NULL,
+    PlannedTransitDays INT NOT NULL,
+    BaseFreightCostUSD DECIMAL(10,2) NOT NULL
+);
+
+
+CREATE TABLE Shipments (
+    ShipmentID VARCHAR(15) PRIMARY KEY,
+    BookingDate DATE NOT NULL,
+    CustomerID VARCHAR(10) NOT NULL,
+    RouteID VARCHAR(10) NOT NULL,
+    ShippingMode VARCHAR(20) NOT NULL,
+    ShipmentType VARCHAR(30),
+    CargoWeightKG DECIMAL(10,2) NOT NULL,
+    PlannedTransitDays INT NOT NULL,
+    PlannedDeliveryDate DATE NOT NULL,
+    ActualDeliveryDate DATE,
+    ShipmentStatus VARCHAR(20) NOT NULL,
+    EstimatedFreightCostUSD DECIMAL(12,2) NOT NULL,
+    ActualFreightCostUSD DECIMAL(12,2) NOT NULL,
+    RevenueUSD DECIMAL(12,2) NOT NULL,
+    DelayDays INT,
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
+    FOREIGN KEY (RouteID) REFERENCES Routes(RouteID)
+);
+SELECT * 
+FROM Customers;
+select*from Routes;
+select*from Shipments
+SELECT COUNT(*) AS total_shipments
+FROM Shipments;
+SELECT
+    COUNT(*) AS total_rows,
+    COUNT(DISTINCT ShipmentID) AS unique_shipments
+FROM Shipments;
+SELECT
+    MIN(ShipmentID) AS first_shipment,
+    MAX(ShipmentID) AS last_shipment
+FROM Shipments;
+WITH RECURSIVE shipment_numbers AS (
+    SELECT 1 AS n
+    UNION ALL
+    SELECT n + 1
+    FROM shipment_numbers
+    WHERE n < 300
+)
+SELECT CONCAT('SHP', LPAD(n, 4, '0')) AS missing_shipment_id
+FROM shipment_numbers
+LEFT JOIN Shipments
+    ON Shipments.ShipmentID = CONCAT('SHP', LPAD(n, 4, '0'))
+WHERE Shipments.ShipmentID IS NULL;
+SELECT *
+FROM Shipments
+WHERE ShipmentID = 'SHP0190';
+SELECT ShipmentStatus, COUNT(*) AS total
+FROM Shipments
+GROUP BY ShipmentStatus;
+INSERT INTO Shipments (
+    ShipmentID, BookingDate, CustomerID, RouteID, ShippingMode,
+    ShipmentType, CargoWeightKG, PlannedTransitDays,
+    PlannedDeliveryDate, ActualDeliveryDate, ShipmentStatus,
+    EstimatedFreightCostUSD, ActualFreightCostUSD, RevenueUSD, DelayDays
+)
+VALUES (
+    'SHP0190', '2025-10-22', 'C002', 'R004', 'Sea',
+    'Export', 3224.1, 10,
+    '2025-11-06', NULL, 'In Transit',
+    2305.97, 2666.23, 3600.64, NULL
+);
+SELECT
+    ShipmentID,
+    ShipmentStatus,
+    ActualDeliveryDate,
+    DelayDays
+FROM Shipments
+WHERE ShipmentID = 'SHP0190';
+SELECT *
+FROM Shipments
+WHERE ShipmentID = 'SHP0197
+Insert INTO Shipments (
+    ShipmentID, BookingDate, CustomerID, RouteID, ShippingMode,
+    ShipmentType, CargoWeightKG, PlannedTransitDays,
+    PlannedDeliveryDate, ActualDeliveryDate, ShipmentStatus,
+    EstimatedFreightCostUSD, ActualFreightCostUSD, RevenueUSD, DelayDays
+)
+VALUES (
+    'SHP0197', '2025-10-30', 'C004', 'R001', 'Sea',
+    'Export', 6796.3, 12,
+    '2025-11-11', NULL, 'Booked',
+    1561.43, 1709.17, 2357.35, NULL
+);
+SELECT
+    ShipmentID,
+    ShipmentStatus,
+    ActualDeliveryDate,
+    DelayDays
+FROM Shipments
+WHERE ShipmentID = 'SHP0197';
+INSERT INTO Shipments (
+    ShipmentID, BookingDate, CustomerID, RouteID, ShippingMode,
+    ShipmentType, CargoWeightKG, PlannedTransitDays,
+    PlannedDeliveryDate, ActualDeliveryDate, ShipmentStatus,
+    EstimatedFreightCostUSD, ActualFreightCostUSD, RevenueUSD, DelayDays
+)
+VALUES (
+    'SHP0285', '2026-01-26', 'C002', 'R003', 'Sea',
+    'Import', 5944.6, 6,
+    '2026-02-01', NULL, 'In Transit',
+    624.81, 681.72, 952.1, NULL
+);
+SELECT COUNT(*) AS total_shipments
+FROM Shipments;
+SELECT
+    ShipmentStatus,
+    COUNT(*) AS total_shipments
+FROM Shipments
+GROUP BY ShipmentStatus
+ORDER BY ShipmentStatus;
+SELECT COUNT(*) AS total_customers
+FROM Customers;
+SELECT COUNT(*) AS total_routes
+FROM Routes;
+#how many shipments are there for each shipment status?
+SELECT
+    ShipmentStatus,
+    COUNT(*) AS TotalShipments
+FROM Shipments
+GROUP BY ShipmentStatus
+ORDER BY TotalShipments DESC;
+#delivery rate
+SELECT
+    COUNT(*) AS TotalShipments,
+    SUM(CASE
+        WHEN ShipmentStatus = 'Delivered' THEN 1
+        ELSE 0
+    END) AS DeliveredShipments,
+    ROUND(
+        SUM(CASE
+            WHEN ShipmentStatus = 'Delivered' THEN 1
+            ELSE 0
+        END) * 100.0 / COUNT(*),
+        2
+    ) AS DeliveryRatePercent
+FROM Shipments;
+#average delivery delays
+SELECT
+    COUNT(DelayDays) AS ShipmentsWithDelayData,
+    ROUND(AVG(DelayDays), 2) AS AverageDelayDays
+FROM Shipments;
+#number of delayed shipments
+SELECT
+    COUNT(*) AS DelayedShipments
+FROM Shipments
+WHERE DelayDays > 0;
+#delayed shipment percentage
+SELECT
+    COUNT(*) AS TotalShipments,
+    SUM(CASE
+        WHEN DelayDays > 0 THEN 1
+        ELSE 0
+    END) AS DelayedShipments,
+    ROUND(
+        SUM(CASE
+            WHEN DelayDays > 0 THEN 1
+            ELSE 0
+        END) * 100.0 / COUNT(*),
+        2
+    ) AS DelayedShipmentPercent
+FROM Shipments;
+#frieght cost varience
+SELECT
+    ShipmentID,
+    EstimatedFreightCostUSD,
+    ActualFreightCostUSD,
+    ROUND(
+        ActualFreightCostUSD - EstimatedFreightCostUSD,
+        2
+    ) AS CostVarianceUSD
+FROM Shipments
+ORDER BY CostVarianceUSD DESC
+LIMIT 10;
+#total frieght cost overrun
+SELECT
+    ROUND(SUM(EstimatedFreightCostUSD), 2) AS TotalEstimatedCost,
+    ROUND(SUM(ActualFreightCostUSD), 2) AS TotalActualCost,
+    ROUND(
+        SUM(ActualFreightCostUSD - EstimatedFreightCostUSD),
+        2
+    ) AS TotalCostVariance
+FROM Shipments;
+#frieght cost varience percentage
+SELECT
+    ROUND(SUM(EstimatedFreightCostUSD), 2)
+        AS TotalEstimatedCost,
+    ROUND(SUM(ActualFreightCostUSD), 2)
+        AS TotalActualCost,
+    ROUND(
+        (
+            SUM(ActualFreightCostUSD)
+            - SUM(EstimatedFreightCostUSD)
+        ) * 100.0
+        / SUM(EstimatedFreightCostUSD),
+        2
+    ) AS CostVariancePercent
+FROM Shipments;
+#comparing frieght costs by shipping mode
+SELECT
+    ShippingMode,
+    COUNT(*) AS TotalShipments,
+    ROUND(AVG(EstimatedFreightCostUSD), 2)
+        AS AvgEstimatedCost,
+    ROUND(AVG(ActualFreightCostUSD), 2)
+        AS AvgActualCost
+FROM Shipments
+GROUP BY ShippingMode
+ORDER BY AvgActualCost DESC;
+#Comparing estimated and actual costs by shipping mode
+SELECT
+    ShippingMode,
+    ROUND(SUM(EstimatedFreightCostUSD), 2)
+        AS TotalEstimatedCost,
+    ROUND(SUM(ActualFreightCostUSD), 2)
+        AS TotalActualCost,
+    ROUND(
+        (
+            SUM(ActualFreightCostUSD)
+            - SUM(EstimatedFreightCostUSD)
+        ) * 100.0
+        / SUM(EstimatedFreightCostUSD),
+        2
+    ) AS CostVariancePercent
+FROM Shipments
+GROUP BY ShippingMode
+ORDER BY CostVariancePercent DESC;
+#shipment delays by shipping mode
+SELECT
+    ShippingMode,
+    COUNT(DelayDays) AS ShipmentsWithDelayData,
+    ROUND(AVG(DelayDays), 2) AS AvgDelayDays,
+    SUM(CASE
+        WHEN DelayDays > 0 THEN 1
+        ELSE 0
+    END) AS DelayedShipments
+FROM Shipments
+GROUP BY ShippingMode
+ORDER BY AvgDelayDays DESC;
+#Calculate the delay rate for each shipping mode
+SELECT
+    ShippingMode,
+    COUNT(*) AS TotalShipments,
+    SUM(CASE
+        WHEN DelayDays > 0 THEN 1
+        ELSE 0
+    END) AS DelayedShipments,
+    ROUND(
+        SUM(CASE
+            WHEN DelayDays > 0 THEN 1
+            ELSE 0
+        END) * 100.0 / COUNT(*),
+        2
+    ) AS DelayRatePercent
+FROM Shipments
+GROUP BY ShippingMode
+ORDER BY DelayRatePercent DESC;
+#freight costs by route
+SELECT
+    RouteID,
+    COUNT(*) AS TotalShipments,
+    ROUND(SUM(EstimatedFreightCostUSD), 2)
+        AS TotalEstimatedCost,
+    ROUND(SUM(ActualFreightCostUSD), 2)
+        AS TotalActualCost,
+    ROUND(
+        SUM(ActualFreightCostUSD - EstimatedFreightCostUSD),
+        2
+    ) AS CostVarianceUSD
+FROM Shipments
+GROUP BY RouteID
+ORDER BY TotalActualCost DESC;
+#route with the highest average cost per shipment
+SELECT
+    RouteID,
+    COUNT(*) AS TotalShipments,
+    ROUND(AVG(EstimatedFreightCostUSD), 2)
+        AS AvgEstimatedCost,
+    ROUND(AVG(ActualFreightCostUSD), 2)
+        AS AvgActualCost
+FROM Shipments
+GROUP BY RouteID
+ORDER BY AvgActualCost DESC;
+#Combining shipments with customer details
+SELECT
+    s.ShipmentID,
+    c.CustomerName,
+    s.ShippingMode,
+    s.ShipmentStatus,
+    s.ActualFreightCostUSD
+FROM Shipments s
+INNER JOIN Customers c
+    ON s.CustomerID = c.CustomerID
+ORDER BY s.ShipmentID
+LIMIT 10;
+#Shipment, customer, and route analysis
+SELECT
+    s.ShipmentID,
+    c.CustomerName,
+    r.Origin,
+    r.Destination,
+    s.ShippingMode,
+    s.ShipmentStatus,
+    s.ActualFreightCostUSD
+FROM Shipments s
+INNER JOIN Customers c
+    ON s.CustomerID = c.CustomerID
+INNER JOIN Routes r
+    ON s.RouteID = r.RouteID
+ORDER BY s.ActualFreightCostUSD DESC
+LIMIT 10;
